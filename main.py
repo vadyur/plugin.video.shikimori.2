@@ -9,6 +9,7 @@ vsdbg.s._debug = False
 
 import shikicore
 import time
+import urllib
 
 plugin = Plugin()
 
@@ -75,7 +76,7 @@ def genre_item(genre):
 def by_genre(params):
 	xbmcplugin.setContent(int(sys.argv[1]), 'files')
 
-	vsdbg._bp()
+	#vsdbg._bp()
 
 	listing = [ genre_item(genre) for genre in shikicore.genres() if genre['kind'] == 'anime' ]
 	return Plugin.create_listing(listing, sort_methods=(xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE,
@@ -83,6 +84,19 @@ def by_genre(params):
 def person(p):
 	xbmc.log(str(p))
 	return { 'name': p['character']['russian'], 'thumbnail': 'https://moe.shikimori.org' + p['character']['image']['original'] }
+
+def play_url(o):
+
+	#vsdbg._bp()
+
+	try:
+		xbmcaddon.Addon('plugin.video.shikimori.org')
+		url = 'https://play.shikimori.org' + o['url']
+		return 'plugin://plugin.video.shikimori.org/?' + urllib.urlencode({
+			'url': str(url), 'mode': 'FILMS'
+		})
+	except:
+		return plugin.get_url(action='play', **o)
 
 def _anime_item(o):
 	xbmc.log(str(o))
@@ -113,9 +127,10 @@ def _anime_item(o):
 	info = {'label': o['russian'], 
 			'info': {'video': infovideo },
 			'thumb': 'https://moe.shikimori.org' + o['image']['original'], 
-			'url': plugin.get_url(action='play', id=o['id']),
 			'fanart': 'https://moe.shikimori.org' + ams['screenshots'][0]['original'] if ams['screenshots'] else None,
 			'cast': [person(item) for item in roles if item.get('character')]}
+
+	info['url'] =  plugin.get_url(action='play', thumb = info['thumb'], fanart=info['fanart'], **o)
 
 	return info
 
@@ -126,22 +141,24 @@ def anime_item(o):
 	xbmc.log(similar_url)
 
 	_ai = _anime_item(o)
+	menu_items = [(u'Подобные', 'Container.Update("%s")' % similar_url,)]
+	if 'FILMS' in _ai['url']:
+		menu_items.append((u'Смотреть оригинальным плагином', 'Container.Update("%s")' % _ai['url'],))
 
 	li = plugin.create_list_item(_ai)
-	li.addContextMenuItems([(u'Подобные', 'Container.Update("%s")' % similar_url,)])
+	li.addContextMenuItems(menu_items)
 
 	return {'list_item': li, 'url': _ai['url']}
 
 def next_item(params, page):
 	params['page'] = page
 
-	import urllib
 	command = sys.argv[0] + '?' + urllib.urlencode(params)
-	return { 'label': '[Next page]', 'url': command, 'is_folder': True }
+	return { 'label': u'[Далее]', 'url': command, 'is_folder': True }
 
 @plugin.action()
 def test(params):
-	vsdbg._bp()
+	#vsdbg._bp()
 	items = []
 	for i in range(100):
 		items.append({'label': str(i), 'url': plugin.get_url(action='none')})
@@ -154,7 +171,7 @@ def test(params):
 def ongoing(params):
 	xbmcplugin.setContent(int(sys.argv[1]), 'tvshows')
 
-	vsdbg._bp()
+	#vsdbg._bp()
 
 	page = int(params.get('page', 1))
 
@@ -170,7 +187,7 @@ def ongoing(params):
 def year(params):
 	xbmcplugin.setContent(int(sys.argv[1]), 'tvshows')
 
-	vsdbg._bp()
+	#vsdbg._bp()
 
 	page = int(params.get('page', 1))
 
@@ -185,6 +202,8 @@ def year(params):
 @plugin.action()
 def genre(params):
 	xbmcplugin.setContent(int(sys.argv[1]), 'tvshows')
+
+	#vsdbg._bp()
 
 	page = int(params.get('page', 1))
 
@@ -210,9 +229,43 @@ def search(params):
 def search_adv(params):
 	return []
 
+_listdircmd = '{"jsonrpc": "2.0", "method": "Files.GetDirectory", "params": {"properties": ["file", "title"], "directory":"%s", "media":"files"}, "id": "1"}'
+
+def get_list(dirPath):
+	itmList = eval(xbmc.executeJSONRPC(_listdircmd % (dirPath)))['result']['files']
+	return itmList
+
+def src_item(s):
+	return { 'label': s['label'], 'url': s['file'], 'is_playable': True }	
+
+@plugin.action()
+def sources(params):
+	vsdbg._bp()
+	l = get_list(params['cmd'])
+
+	return [ src_item(s) for s in l ]
+
+def episode_item(e):
+	return {
+		'label': e['label'],
+		'url': plugin.get_url(action='sources', cmd=e['file'])
+	}
+
 @plugin.action()
 def play(params):
-	pass
+	vsdbg._bp()
+
+	try:
+		xbmcaddon.Addon('plugin.video.shikimori.org')
+
+		url = play_url(params)
+
+		l = get_list(url)
+
+		return [ episode_item(e) for e in l ]
+
+	except BaseException as e:
+		xbmc.log(str(e))
 
 #vsdbg._bp()
 
