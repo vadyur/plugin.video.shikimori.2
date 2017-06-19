@@ -237,6 +237,19 @@ def related(params):
 
 @plugin.action()
 def search(params):
+	
+	s = params.get('search')
+	if not s:
+		dlg = xbmcgui.Dialog()
+		s = dlg.input(u'Поиск аниме')
+		if s:
+			# add param and resend
+			params['search'] = s
+		else:
+			return
+
+	#oo = shikicore.animes_search()
+
 	return []
 
 @plugin.action()
