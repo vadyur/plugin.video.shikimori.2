@@ -41,6 +41,10 @@ def shikicore_animes_roles(id):
 def shikicore_animes_similar(id):
 	return request_limit(shikicore.animes_similar, id)
 
+@plugin.mem_cached(30)
+def shikicore_animes_related(id):
+	return request_limit(shikicore.animes_related, id)
+
 # ------ Actions -------------------------
 @plugin.action()
 def root(params):
@@ -138,10 +142,12 @@ def _anime_item(o):
 def anime_item(o):
 
 	similar_url = plugin.get_url(action='similar', id=o['id'])
+	related_url = plugin.get_url(action='related', id=o['id'])
 	xbmc.log(similar_url)
 
 	_ai = _anime_item(o)
-	menu_items = [(u'Подобные', 'Container.Update("%s")' % similar_url,)]
+	menu_items = [(u'Подобные', 'Container.Update("%s")' % similar_url,),
+				  (u'Связанные','Container.Update("%s")' % related_url,),]
 	if 'FILMS' in _ai['url']:
 		menu_items.append((u'Смотреть оригинальным плагином', 'Container.Update("%s")' % _ai['url'],))
 
@@ -220,6 +226,14 @@ def similar(params):
 	xbmcplugin.setContent(int(sys.argv[1]), 'tvshows')
 	oo = shikicore_animes_similar(params['id'])
 	return [ anime_item(o) for o in oo]
+
+@plugin.action()
+def related(params):
+	xbmcplugin.setContent(int(sys.argv[1]), 'tvshows')
+	oo = shikicore_animes_related(params['id'])
+
+	return [ anime_item(o['anime']) for o in oo if o.get('anime')]
+
 
 @plugin.action()
 def search(params):
