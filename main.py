@@ -249,7 +249,9 @@ def search(params):
 
 @plugin.action()
 def search_adv(params):
-	return []
+	return [{'label': u'Годы', 'url': plugin.get_url(action='f_years')},
+			{'label': u'Жанры', 'url': plugin.get_url(action='f_genres')},
+			{'label': u'Рейтинг', 'url': plugin.get_url(action='f_score')},	]
 
 _listdircmd = '{"jsonrpc": "2.0", "method": "Files.GetDirectory", "params": {"properties": ["file", "title"], "directory":"%s", "media":"files"}, "id": "1"}'
 
