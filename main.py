@@ -234,23 +234,18 @@ def related(params):
 
 	return [ anime_item(o['anime']) for o in oo if o.get('anime')]
 
-
 @plugin.action()
 def search(params):
-	
+	dlg = xbmcgui.Dialog()
 	s = params.get('search')
 	if not s:
-		dlg = xbmcgui.Dialog()
-		s = dlg.input(u'Поиск аниме')
-		if s:
-			# add param and resend
-			params['search'] = s
-		else:
-			return
+		s = dlg.input(u'Введите поисковую строку')
+		command = sys.argv[0] + sys.argv[2] + '&search=' + urllib.quote(s)
+		xbmc.executebuiltin(b'Container.Update(\"%s\")' % command)
+		return
 
-	#oo = shikicore.animes_search()
-
-	return []
+	oo = shikicore.animes_search(s)
+	return [ anime_item(o) for o in oo]
 
 @plugin.action()
 def search_adv(params):
