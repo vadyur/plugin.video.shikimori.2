@@ -5,7 +5,7 @@ from simpleplugin import Plugin
 import xbmc, xbmcaddon, xbmcgui, xbmcplugin, sys, re
 
 import vsdbg
-vsdbg.s._debug = False
+#vsdbg.s._debug = False
 
 import shikicore
 import time
@@ -54,9 +54,10 @@ def root(params):
 
 	return [{'label': u'Поиск', 'url': plugin.get_url(action='search')},
 			{'label': u'Расширенный поиск', 'url': plugin.get_url(action='search_adv')},
-			{'label': u'Онгоинг', 'url': plugin.get_url(action='ongoing')},
 			{'label': u'По годам', 'url': plugin.get_url(action='by_year')},
 			{'label': u'По жанрам', 'url': plugin.get_url(action='by_genre')},
+			{'label': u'Избранное', 'url': plugin.get_url(action='favourites')},
+			{'label': u'Онгоинг', 'url': plugin.get_url(action='ongoing')},
 	
 			#{'label': 'test', 'url': plugin.get_url(action='test') }
 	]
@@ -118,7 +119,7 @@ def _anime_item(o):
 		description = re.sub(r'\[.+?\]', '', description)
 
 	infovideo = { 
-			'title': o['russian'],
+			'title': ams['russian'],
 			'genre': ', '.join([item['russian'].lower() for item in ams['genres']]), 
 			'originaltitle': ams['name'],
 			'year': ams['aired_on'].split('-')[0],
@@ -128,9 +129,9 @@ def _anime_item(o):
 			'studio': ', '.join([item['name'] for item in ams['studios']]),
 			'plot': description }
 
-	info = {'label': o['russian'], 
+	info = {'label': ams['russian'], 
 			'info': {'video': infovideo },
-			'thumb': 'https://moe.shikimori.org' + o['image']['original'], 
+			'thumb': 'https://moe.shikimori.org' + ams['image']['original'], 
 			'fanart': 'https://moe.shikimori.org' + ams['screenshots'][0]['original'] if ams['screenshots'] else None,
 			'cast': [person(item) for item in roles if item.get('character')]}
 
@@ -174,6 +175,22 @@ def test(params):
 	return items
 
 @plugin.action()
+def favourites(params):
+	xbmcplugin.setContent(int(sys.argv[1]), 'tvshows')
+
+	page = int(params.get('page', 1))
+
+	vsdbg._bp()
+
+	oo = shikicore.favourites(limit=10, page=page)
+	res = [ anime_item(o) for o in oo]
+
+	if res and len(res) == 10:
+		res.append(next_item(params, page+1))
+
+	return res
+
+@plugin.action()
 def ongoing(params):
 	xbmcplugin.setContent(int(sys.argv[1]), 'tvshows')
 
@@ -184,7 +201,7 @@ def ongoing(params):
 	oo = shikicore.ongoing(limit=10, page=page)
 	res = [ anime_item(o) for o in oo]
 
-	if res:
+	if res and len(res) == 10:
 		res.append(next_item(params, page+1))
 
 	return res
@@ -200,7 +217,7 @@ def year(params):
 	oo = shikicore.by_year(params['year'], limit=10, page=page)
 	res = [ anime_item(o) for o in oo]
 
-	if res:
+	if res and len(res) == 10:
 		res.append(next_item(params, page+1))
 
 	return res
@@ -216,7 +233,7 @@ def genre(params):
 	oo = shikicore.by_genre(params['id'], limit=10, page=page)
 	res = [ anime_item(o) for o in oo]
 
-	if res:
+	if res and len(res) == 10:
 		res.append(next_item(params, page+1))
 
 	return res
@@ -253,9 +270,20 @@ def search_adv(params):
 			{'label': u'Жанры', 'url': plugin.get_url(action='f_genres')},
 			{'label': u'Рейтинг', 'url': plugin.get_url(action='f_score')},	]
 
-_listdircmd = '{"jsonrpc": "2.0", "method": "Files.GetDirectory", "params": {"properties": ["file", "title"], "directory":"%s", "media":"files"}, "id": "1"}'
+@plugin.action()
+def f_years(params):
+	pass
+
+@plugin.action()
+def f_genres(params):
+	pass
+
+@plugin.action()
+def f_score(params):
+	pass
 
 def get_list(dirPath):
+	_listdircmd = '{"jsonrpc": "2.0", "method": "Files.GetDirectory", "params": {"properties": ["file", "title"], "directory":"%s", "media":"files"}, "id": "1"}'
 	itmList = eval(xbmc.executeJSONRPC(_listdircmd % (dirPath)))['result']['files']
 	return itmList
 
@@ -279,17 +307,38 @@ def episode_item(e):
 def play(params):
 	vsdbg._bp()
 
-	try:
-		xbmcaddon.Addon('plugin.video.shikimori.org')
+	options = []
+	actions = []
 
-		url = play_url(params)
+	if xbmc.getCondVisibility("System.HasAddon(plugin.video.shikimori.org)"):
+		def play_shiki():
+			url = play_url(params)
+			l = get_list(url)
+			return [ episode_item(e) for e in l ]
+		actions.append(play_shiki)
+		options.append(u'Играть оригинальным плагином')
 
-		l = get_list(url)
+	if xbmc.getCondVisibility("System.HasAddon(script.media.aggregator)"):
+		def act():
+			cmd = 'plugin://script.media.aggregator/?' + urllib.urlencode(
+				{'action': 'add_media',
+				 'title': params['russian'].encode('utf-8'),
+				 'imdb': 'sm' + params['id']})
+			xbmc.executebuiltin('Container.Update("%s")' % cmd)
+		actions.append(act)
+		options.append(u'Перейти/добавить в медиатеку')
 
-		return [ episode_item(e) for e in l ]
+	res = None
+	if options:
+		if len(options) == 1:
+			res = actions[0]()
+		else:
+			index = xbmcgui.Dialog().contextmenu(list=options)
+			if index >= 0:
+				res = actions[index]()
+	if res:
+		return res
 
-	except BaseException as e:
-		xbmc.log(str(e))
 
 #vsdbg._bp()
 
