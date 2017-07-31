@@ -342,29 +342,5 @@ def play(params):
 
 #vsdbg._bp()
 
-core = Plugin('script.module.shikimori.core')
-
-uname = core.get_setting('username')
-passw = core.get_setting('password')
-token = core.get_setting('token')
-
-uname_ok = core.get_setting('username_ok')
-passw_ok = core.get_setting('password_ok')
-
-xbmc.log(uname)
-xbmc.log(passw)
-
-if uname == uname_ok and passw == passw_ok and token:
-	r = shikicore.authorize(uname, passw, token)
-else:
-	r = shikicore.authorize(uname, passw)
-core.log_error(str(r))
-
-if not r:
-	core.addon.openSettings()
-else:
-	core.set_setting('token', r)
-	core.set_setting('username_ok', uname)
-	core.set_setting('password_ok', passw)
-
+if shikicore.authorize_me():
 	plugin.run()
