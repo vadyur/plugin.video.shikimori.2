@@ -322,7 +322,7 @@ def play(params):
 		def act():
 			cmd = 'plugin://script.media.aggregator/?' + urllib.urlencode(
 				{'action': 'add_media',
-				 'title': params['russian'].encode('utf-8'),
+				 'title': params['name'],
 				 'imdb': 'sm' + params['id']})
 			xbmc.executebuiltin('Container.Update("%s")' % cmd)
 		actions.append(act)
