@@ -45,6 +45,10 @@ def shikicore_animes_similar(id):
 def shikicore_animes_related(id):
 	return request_limit(shikicore.animes_related, id)
 
+@plugin.mem_cached(30)
+def shikicore_whoami():
+	return shikicore.whoami()
+
 # ------ Actions -------------------------
 @plugin.action()
 def root(params):
@@ -144,11 +148,14 @@ def anime_item(o):
 
 	similar_url = plugin.get_url(action='similar', id=o['id'])
 	related_url = plugin.get_url(action='related', id=o['id'])
+	rate_url	= plugin.get_url(action='rate', id=o['id'])
 	xbmc.log(similar_url)
 
 	_ai = _anime_item(o)
 	menu_items = [(u'Подобные', 'Container.Update("%s")' % similar_url,),
-				  (u'Связанные','Container.Update("%s")' % related_url,),]
+				  (u'Связанные','Container.Update("%s")' % related_url,),
+				  (u'Добавить в список', 'RunPlugin("%s")' % rate_url),
+				 ]
 	if 'FILMS' in _ai['url']:
 		menu_items.append((u'Смотреть оригинальным плагином', 'Container.Update("%s")' % _ai['url'],))
 
@@ -338,6 +345,39 @@ def play(params):
 				res = actions[index]()
 	if res:
 		return res
+
+
+@plugin.action()
+def rate(params):
+	vsdbg._bp()
+
+	options = [u'Просмотрено',	u'Брошено',		u'Отложено',	u'Запланировано',	u'Пересматриваю',	u'Смотрю']
+	actions = ['completed',		 'dropped',		 'on_hold',		 'planned',			 'rewatching',		 'watching']
+
+	id = params['id']
+
+	rates = shikicore.user_rates(user_id=shikicore_whoami()['id'], target_id=id)
+	xbmc.log(str(rates))
+
+	prev_status = None
+	if rates:
+		r = rates[0]
+		i = actions.index(r['status'])
+		if i >= 0:
+			options[i] = '* ' + options[i]
+			prev_status = r['status']
+
+	index = xbmcgui.Dialog().contextmenu(list=options)
+	if index >= 0:
+		status = actions[index]
+
+		if rates:
+			if status == prev_status:
+				shikicore.delete_user_rate(r['id'])
+			else:
+				shikicore.update_user_rate(r['id'], status=status)
+		else:
+			shikicore.create_user_rate(status=status, user_id=shikicore_whoami()['id'], target_id=id)
 
 
 #vsdbg._bp()
