@@ -7,9 +7,9 @@ import xbmc, xbmcaddon, xbmcgui, xbmcplugin, sys, re
 import vsdbg
 #vsdbg.s._debug = False
 
-import shikicore
 import time
 import urllib
+import shikicore
 
 plugin = Plugin()
 
@@ -61,6 +61,7 @@ def root(params):
 			{'label': u'По годам', 'url': plugin.get_url(action='by_year')},
 			{'label': u'По жанрам', 'url': plugin.get_url(action='by_genre')},
 			{'label': u'Избранное', 'url': plugin.get_url(action='favourites')},
+			{'label': u'Списки', 'url': plugin.get_url(action='rates')},
 			{'label': u'Онгоинг', 'url': plugin.get_url(action='ongoing')},
 	
 			#{'label': 'test', 'url': plugin.get_url(action='test') }
@@ -346,41 +347,90 @@ def play(params):
 	if res:
 		return res
 
+rate_statuses = ('completed',	 'dropped',		 'on_hold',		 'planned',			 'rewatching',		 'watching')
+status_names = (u'Просмотрено',	u'Брошено',		u'Отложено',	u'Запланировано',	u'Пересматриваю',	u'Смотрю')
 
 @plugin.action()
 def rate(params):
 	vsdbg._bp()
 
-	options = [u'Просмотрено',	u'Брошено',		u'Отложено',	u'Запланировано',	u'Пересматриваю',	u'Смотрю']
-	actions = ['completed',		 'dropped',		 'on_hold',		 'planned',			 'rewatching',		 'watching']
+	options = [u'Ничего не выбрано'].extend(status_names)
+	actions = ['nothing'].extend(rate_statuses)
 
 	id = params['id']
 
 	rates = shikicore.user_rates(user_id=shikicore_whoami()['id'], target_id=id)
 	xbmc.log(str(rates))
 
-	prev_status = None
 	if rates:
 		r = rates[0]
 		i = actions.index(r['status'])
-		if i >= 0:
-			options[i] = '* ' + options[i]
-			prev_status = r['status']
+		if i > 0:
+			options[i] = u'● ' + options[i]
+		else:
+			options[0] = u'● ' + options[0]
 
 	index = xbmcgui.Dialog().contextmenu(list=options)
 	if index >= 0:
 		status = actions[index]
 
 		if rates:
-			if status == prev_status:
+			if index == 0:
 				shikicore.delete_user_rate(r['id'])
 			else:
 				shikicore.update_user_rate(r['id'], status=status)
-		else:
+		elif index > 0:
 			shikicore.create_user_rate(status=status, user_id=shikicore_whoami()['id'], target_id=id)
+
+@plugin.action()
+def rates(params):
+	vsdbg._bp()
+
+	_rates = shikicore.user_rates(user_id=shikicore_whoami()['id'])
+
+	rr = {}
+	for r in _rates:
+		status = r['status']
+		if status in rr:
+			rr[status].append(r)
+		else:
+			rr[status] = [r]
+
+	result = []
+	for index in range(len(rate_statuses)):
+		status = rate_statuses[index]
+		name = status_names[index]
+
+		if status in rr:
+			Ids = [ str(r['target_id']) for r in rr[status] ]
+
+			res = { 'label': name,  'url': plugin.get_url(action='rate_list', status=status, ids=','.join(Ids))}
+			result.append(res)
+
+	return result
+
+
+@plugin.action()
+def rate_list(params):
+	vsdbg._bp()
+
+	Ids = params['ids'].split(',')
+
+	curr_ids = Ids[:10]
+	next_ids = Ids[10:]
+
+	result = [ anime_item({'id': id }) for id in curr_ids ]
+
+	if next_ids:
+		params['ids'] = ','.join(next_ids)
+		command = plugin.get_url(**params)
+		result.append({'label': u'[Далее]', 'url': command, 'is_folder': True})
+
+	return result
 
 
 #vsdbg._bp()
-
-if shikicore.authorize_me():
-	plugin.run()
+if __name__ == '__main__':
+	shikicore.api = shikicore.authorize_me()
+	if shikicore.api:
+		plugin.run()
