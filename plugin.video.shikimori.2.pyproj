@@ -22,8 +22,12 @@
   <ItemGroup>
     <Content Include="addon.xml" />
     <Content Include="icon.png" />
+    <Content Include="resources\settings.xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="default.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="main.py" />
     <Compile Include="src\context_rate.py">
       <SubType>Code</SubType>
@@ -32,6 +36,7 @@
     <Compile Include="src\__init__.py" />
   </ItemGroup>
   <ItemGroup>
+    <Folder Include="resources\" />
     <Folder Include="src\" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
