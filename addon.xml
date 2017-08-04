@@ -11,7 +11,15 @@
 	<extension point="xbmc.python.pluginsource" provides="video" library="main.py">
 		<provides>video</provides>
 	</extension>
-	<extension point="xbmc.addon.metadata">
+  <extension point="kodi.context.item">
+    <menu id="kodi.core.main">
+        <item library="src/context_rate.py">
+          <label>Shikimori: Добавить в список</label>
+          <visible>[ StringCompare(ListItem.dbtype,movie) | StringCompare(ListItem.dbtype,episode) | StringCompare(ListItem.dbtype,tvshow) ] + String.Contains(ListItem.Path,Anime)</visible>
+        </item>
+    </menu>
+  </extension>
+  <extension point="xbmc.addon.metadata">
 		<summary>Аниме онлайн</summary>
 		<description>Русскоязычная энциклопедия аниме и манги, с возможностью онлайн просмотра. Здесь вы сможете вести список просмотренных аниме, оставлять отзывы, следить за анонсами, релизами и за выходом серий онгоингов.</description>
 		<platform>all</platform>

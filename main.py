@@ -347,67 +347,23 @@ def play(params):
 	if res:
 		return res
 
-rate_statuses = ('completed',	 'dropped',		 'on_hold',		 'planned',			 'rewatching',		 'watching')
-status_names = (u'Просмотрено',	u'Брошено',		u'Отложено',	u'Запланировано',	u'Пересматриваю',	u'Смотрю')
 
 @plugin.action()
 def rate(params):
 	vsdbg._bp()
 
-	options = [u'Ничего не выбрано'].extend(status_names)
-	actions = ['nothing'].extend(rate_statuses)
-
 	id = params['id']
 
-	rates = shikicore.user_rates(user_id=shikicore_whoami()['id'], target_id=id)
-	xbmc.log(str(rates))
+	from src.rates import context_menu
+	context_menu(id, shikicore_whoami()['id'])
 
-	if rates:
-		r = rates[0]
-		i = actions.index(r['status'])
-		if i > 0:
-			options[i] = u'● ' + options[i]
-		else:
-			options[0] = u'● ' + options[0]
-
-	index = xbmcgui.Dialog().contextmenu(list=options)
-	if index >= 0:
-		status = actions[index]
-
-		if rates:
-			if index == 0:
-				shikicore.delete_user_rate(r['id'])
-			else:
-				shikicore.update_user_rate(r['id'], status=status)
-		elif index > 0:
-			shikicore.create_user_rate(status=status, user_id=shikicore_whoami()['id'], target_id=id)
 
 @plugin.action()
 def rates(params):
 	vsdbg._bp()
 
-	_rates = shikicore.user_rates(user_id=shikicore_whoami()['id'])
-
-	rr = {}
-	for r in _rates:
-		status = r['status']
-		if status in rr:
-			rr[status].append(r)
-		else:
-			rr[status] = [r]
-
-	result = []
-	for index in range(len(rate_statuses)):
-		status = rate_statuses[index]
-		name = status_names[index]
-
-		if status in rr:
-			Ids = [ str(r['target_id']) for r in rr[status] ]
-
-			res = { 'label': name,  'url': plugin.get_url(action='rate_list', status=status, ids=','.join(Ids))}
-			result.append(res)
-
-	return result
+	from src.rates import status_list
+	return status_list(shikicore_whoami()['id'], plugin)
 
 
 @plugin.action()
