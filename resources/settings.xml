@@ -1,0 +1,6 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<settings>
+	<category label="Settings">
+		<setting label="Синхронизировать сайт с медиатекой" type="action" action="RunScript(plugin.video.shikimori.2, synclibrary)"/>		
+	</category>
+</settings>

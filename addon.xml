@@ -11,6 +11,9 @@
 	<extension point="xbmc.python.pluginsource" provides="video" library="main.py">
 		<provides>video</provides>
 	</extension>
+	<extension point="xbmc.python.script" library="default.py">
+		<provides>executable</provides>
+	</extension>
   <extension point="kodi.context.item">
     <menu id="kodi.core.main">
         <item library="src/context_rate.py">
