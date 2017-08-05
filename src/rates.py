@@ -56,7 +56,7 @@ def status_list(user_id, plugin):
 		if status in rr:
 			Ids = [ str(r['target_id']) for r in rr[status] ]
 	
-			res = { 'label': name,  'url': plugin.get_url(action='rate_list', status=status, ids=','.join(Ids))}
+			res = { 'label': u'{0} ({1})'.format(name, len(Ids)),  'url': plugin.get_url(action='rate_list', status=status, ids=','.join(Ids))}
 			result.append(res)
 	
 	return result

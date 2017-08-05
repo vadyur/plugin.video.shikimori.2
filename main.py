@@ -2,7 +2,7 @@
 
 from simpleplugin import Plugin
 
-import xbmc, xbmcaddon, xbmcgui, xbmcplugin, sys, re
+import xbmc, xbmcaddon, xbmcgui, xbmcplugin, sys, re, json
 
 import vsdbg
 #vsdbg.s._debug = False
@@ -163,7 +163,30 @@ def anime_item(o):
 	li = plugin.create_list_item(_ai)
 	li.addContextMenuItems(menu_items)
 
+	o['_ai'] = _ai
+	o['similar_url'] = similar_url
+	o['related_url'] = related_url
+	o['rate_url']	 = rate_url
+
 	return {'list_item': li, 'url': _ai['url']}
+
+@plugin.action()
+def anime_adv(params):
+	o = json.loads(params['o'])
+	return [
+		anime_item(o),
+		{'label': u'Подобные', 'url': o['similar_url']},	
+		{'label': u'Связанные','url': o['related_url']},
+		{'label': u'Добавить в список', 'url': o['rate_url']}
+	]
+
+def anime_catalog(o):
+	xbmcplugin.setContent(int(sys.argv[1]), 'tvshows')
+
+	return {'label': o['russian'], 
+			'icon': 'https://moe.shikimori.org' + o['image']['preview'], 
+			'thumb': 'https://moe.shikimori.org' + o['image']['original'], 
+			'url': plugin.get_url(action='anime_adv', o=json.dumps(o))}
 
 def next_item(params, page):
 	params['page'] = page
@@ -190,10 +213,10 @@ def favourites(params):
 
 	vsdbg._bp()
 
-	oo = shikicore.favourites(limit=10, page=page)
-	res = [ anime_item(o) for o in oo]
+	oo = shikicore.favourites(limit=50, page=page)
+	res = [ anime_catalog(o) for o in oo]
 
-	if res and len(res) == 10:
+	if res and len(res) == 50:
 		res.append(next_item(params, page+1))
 
 	return res
@@ -206,10 +229,10 @@ def ongoing(params):
 
 	page = int(params.get('page', 1))
 
-	oo = shikicore.ongoing(limit=10, page=page)
-	res = [ anime_item(o) for o in oo]
+	oo = shikicore.ongoing(limit=50, page=page)
+	res = [ anime_catalog(o) for o in oo]
 
-	if res and len(res) == 10:
+	if res and len(res) == 50:
 		res.append(next_item(params, page+1))
 
 	return res
@@ -222,10 +245,10 @@ def year(params):
 
 	page = int(params.get('page', 1))
 
-	oo = shikicore.by_year(params['year'], limit=10, page=page)
-	res = [ anime_item(o) for o in oo]
+	oo = shikicore.by_year(params['year'], limit=50, page=page)
+	res = [ anime_catalog(o) for o in oo]
 
-	if res and len(res) == 10:
+	if res and len(res) == 50:
 		res.append(next_item(params, page+1))
 
 	return res
@@ -238,10 +261,10 @@ def genre(params):
 
 	page = int(params.get('page', 1))
 
-	oo = shikicore.by_genre(params['id'], limit=10, page=page)
-	res = [ anime_item(o) for o in oo]
+	oo = shikicore.by_genre(params['id'], limit=50, page=page)
+	res = [ anime_catalog(o) for o in oo]
 
-	if res and len(res) == 10:
+	if res and len(res) == 50:
 		res.append(next_item(params, page+1))
 
 	return res
