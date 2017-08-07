@@ -150,12 +150,14 @@ def anime_item(o):
 	similar_url = plugin.get_url(action='similar', id=o['id'])
 	related_url = plugin.get_url(action='related', id=o['id'])
 	rate_url	= plugin.get_url(action='rate', id=o['id'])
+	score_url	= plugin.get_url(action='score', id=o['id'])
 	xbmc.log(similar_url)
 
 	_ai = _anime_item(o)
 	menu_items = [(u'Подобные', 'Container.Update("%s")' % similar_url,),
 				  (u'Связанные','Container.Update("%s")' % related_url,),
 				  (u'Добавить в список', 'RunPlugin("%s")' % rate_url),
+				  (u'Оценить', 'RunPlugin("%s")' % score_url),
 				 ]
 	if 'FILMS' in _ai['url']:
 		menu_items.append((u'Смотреть оригинальным плагином', 'Container.Update("%s")' % _ai['url'],))
@@ -167,6 +169,7 @@ def anime_item(o):
 	o['similar_url'] = similar_url
 	o['related_url'] = related_url
 	o['rate_url']	 = rate_url
+	o['score_url']	 = score_url
 
 	return {'list_item': li, 'url': _ai['url']}
 
@@ -177,7 +180,8 @@ def anime_adv(params):
 		anime_item(o),
 		{'label': u'Подобные', 'url': o['similar_url']},	
 		{'label': u'Связанные','url': o['related_url']},
-		{'label': u'Добавить в список', 'url': o['rate_url']}
+		{'label': u'Добавить в список', 'url': o['rate_url']},
+		{'label': u'Оценить', 'url': o['score_url']}
 	]
 
 def anime_catalog(o):
@@ -377,9 +381,20 @@ def rate(params):
 
 	id = params['id']
 
-	from src.rates import context_menu
-	context_menu(id, shikicore_whoami()['id'])
+	from src.rates import context_menu_rates
+	context_menu_rates(id, shikicore_whoami()['id'])
 
+
+@plugin.action()
+def score(params):
+	whoami = shikicore_whoami()['id']
+
+	vsdbg._bp()
+
+	id = params['id']
+
+	from src.rates import context_menu_scores
+	context_menu_scores(id, whoami)
 
 @plugin.action()
 def rates(params):
