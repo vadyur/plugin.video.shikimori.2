@@ -301,21 +301,64 @@ def search(params):
 
 @plugin.action()
 def search_adv(params):
-	return [{'label': u'Годы', 'url': plugin.get_url(action='f_years')},
-			{'label': u'Жанры', 'url': plugin.get_url(action='f_genres')},
-			{'label': u'Рейтинг', 'url': plugin.get_url(action='f_score')},	]
+	from src.search_adv import SearchAdv
+
+	def format(label, values):
+		if values:
+			values = [unicode(val) for val in values]
+
+			result = label.split(':')[0] + ' [ '
+			result += u', '.join(values)
+			result += ' ]'
+			return result.encode('utf-8')
+		else:
+			return label.encode('utf-8')
+
+	rating = str(SearchAdv().score) + u' и выше' if SearchAdv().score else u'любой'
+
+	return [{'label': format(u'Годы: все', SearchAdv().years), 'url': plugin.get_url(action='f_years')},
+			{'label': format(u'Жанры: все', SearchAdv().genres), 'url': plugin.get_url(action='f_genres')},
+			{'label': u'Рейтинг: ' + rating, 'url': plugin.get_url(action='f_score')},	
+			{'label': u'[Найти]', 'url': plugin.get_url(action='f_search_adv')}]
 
 @plugin.action()
 def f_years(params):
-	pass
+	from src.search_adv import SearchAdv
+
+	indxs = xbmcgui.Dialog().multiselect(u'Выберите год(ы)', [ str(year) for year in SearchAdv.years_list() ])
+	SearchAdv().years = [ SearchAdv.years_list()[i] for i in indxs ]
 
 @plugin.action()
 def f_genres(params):
-	pass
+	from src.search_adv import SearchAdv
+
+	vsdbg._bp()
+
+	indxs = xbmcgui.Dialog().multiselect(u'Выберите жанр(ы)', [ genre for genre in SearchAdv.genres_list() ])
+	SearchAdv().genres = [ SearchAdv.genres_list()[i] for i in indxs ]
 
 @plugin.action()
 def f_score(params):
-	pass
+	from src.search_adv import SearchAdv
+	indx = xbmcgui.Dialog().select(u'Оценка не меньше', [ score for score in SearchAdv.scores_list() ])
+
+	if indx >= 0:
+		SearchAdv().score = int(SearchAdv.scores_list()[indx].split(':')[0])
+	else:
+		SearchAdv().score = None
+
+@plugin.action()
+def f_search_adv(params):
+	from src.search_adv import SearchAdv
+	kwargs = {}
+	if SearchAdv().years:
+		kwargs['season'] = ','.join([str(year) for year in SearchAdv().years])
+
+	if SearchAdv().score:
+		kwargs['score'] = SearchAdv().score
+
+	oo = shikicore.search_adv(limit = 50, **kwargs)
+	return [ anime_catalog(o) for o in oo]
 
 def get_list(dirPath):
 	_listdircmd = '{"jsonrpc": "2.0", "method": "Files.GetDirectory", "params": {"properties": ["file", "title"], "directory":"%s", "media":"files"}, "id": "1"}'
