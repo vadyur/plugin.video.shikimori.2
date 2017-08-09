@@ -123,8 +123,12 @@ def _anime_item(o):
 		description = description.replace(']]', '')
 		description = re.sub(r'\[.+?\]', '', description)
 
+	title = ams['russian']
+	if not title:
+		title = ams['name']
+
 	infovideo = { 
-			'title': ams['russian'],
+			'title': title,
 			'genre': ', '.join([item['russian'].lower() for item in ams['genres']]), 
 			'originaltitle': ams['name'],
 			'year': ams['aired_on'].split('-')[0],
@@ -134,13 +138,17 @@ def _anime_item(o):
 			'studio': ', '.join([item['name'] for item in ams['studios']]),
 			'plot': description }
 
-	info = {'label': ams['russian'], 
+	info = {'label': title, 
 			'info': {'video': infovideo },
 			'thumb': 'https://moe.shikimori.org' + ams['image']['original'], 
 			'fanart': 'https://moe.shikimori.org' + ams['screenshots'][0]['original'] if ams['screenshots'] else None,
 			'cast': [person(item) for item in roles if item.get('character')]}
 
-	info['url'] =  plugin.get_url(action='play', thumb = info['thumb'], fanart=info['fanart'], **o)
+	#vsdbg._bp()
+
+	_o = { your_key: o[your_key] for your_key in ['name', 'id', 'url'] }
+
+	info['url'] =  plugin.get_url(action='play', thumb = info['thumb'], fanart=info['fanart'], **_o)
 
 	return info
 
@@ -187,7 +195,11 @@ def anime_adv(params):
 def anime_catalog(o):
 	xbmcplugin.setContent(int(sys.argv[1]), 'tvshows')
 
-	return {'label': o['russian'], 
+	title = o['russian']
+	if not title:
+		title = o['name']
+
+	return {'label': title, 
 			'icon': 'https://moe.shikimori.org' + o['image']['preview'], 
 			'thumb': 'https://moe.shikimori.org' + o['image']['original'], 
 			'url': plugin.get_url(action='anime_adv', o=json.dumps(o))}
@@ -215,10 +227,19 @@ def favourites(params):
 
 	page = int(params.get('page', 1))
 
-	vsdbg._bp()
+	#vsdbg._bp()
+
+	def _(o):
+		try:
+			v = o['russian'] 
+			v = o['image']['preview'] 
+			v = o['image']['original'] 
+			return o
+		except TypeError, KeyError:
+			return shikicore_animes_(o['id'])
 
 	oo = shikicore.favourites(limit=50, page=page)
-	res = [ anime_catalog(o) for o in oo]
+	res = [ anime_catalog(_(o)) for o in oo]
 
 	if res and len(res) == 50:
 		res.append(next_item(params, page+1))
@@ -277,14 +298,14 @@ def genre(params):
 def similar(params):
 	xbmcplugin.setContent(int(sys.argv[1]), 'tvshows')
 	oo = shikicore_animes_similar(params['id'])
-	return [ anime_item(o) for o in oo]
+	return [ anime_catalog(o) for o in oo]
 
 @plugin.action()
 def related(params):
 	xbmcplugin.setContent(int(sys.argv[1]), 'tvshows')
 	oo = shikicore_animes_related(params['id'])
 
-	return [ anime_item(o['anime']) for o in oo if o.get('anime')]
+	return [ anime_catalog(o['anime']) for o in oo if o.get('anime')]
 
 @plugin.action()
 def search(params):
@@ -297,7 +318,7 @@ def search(params):
 		return
 
 	oo = shikicore.animes_search(s)
-	return [ anime_item(o) for o in oo]
+	return [ anime_catalog(o) for o in oo]
 
 @plugin.action()
 def search_adv(params):
@@ -314,48 +335,96 @@ def search_adv(params):
 		else:
 			return label.encode('utf-8')
 
-	rating = str(SearchAdv().score) + u' и выше' if SearchAdv().score else u'любой'
+	score = str(SearchAdv().score) + u' и выше' if SearchAdv().score else u'любой'
+
+	rd = SearchAdv.ratings_dict()
+	ratings = [ rd[r].split(' - ')[0] for r in SearchAdv().rating ]
 
 	return [{'label': format(u'Годы: все', SearchAdv().years), 'url': plugin.get_url(action='f_years')},
 			{'label': format(u'Жанры: все', SearchAdv().genres), 'url': plugin.get_url(action='f_genres')},
-			{'label': u'Рейтинг: ' + rating, 'url': plugin.get_url(action='f_score')},	
+			{'label': u'Оценка: ' + score, 'url': plugin.get_url(action='f_score')},	
+			{'label': format(u'Рейтинг: все', ratings), 'url': plugin.get_url(action='f_rating')},
+			{'label': u'[Сбросить всё]', 'url': plugin.get_url(action='f_search_reset')},
 			{'label': u'[Найти]', 'url': plugin.get_url(action='f_search_adv')}]
 
 @plugin.action()
 def f_years(params):
 	from src.search_adv import SearchAdv
 
-	indxs = xbmcgui.Dialog().multiselect(u'Выберите год(ы)', [ str(year) for year in SearchAdv.years_list() ])
-	SearchAdv().years = [ SearchAdv.years_list()[i] for i in indxs ]
+	years_list = SearchAdv.years_list()
+	indxs = xbmcgui.Dialog().multiselect(u'Выберите год(ы)', [ str(year) for year in years_list ])
+	SearchAdv().years = [ years_list[i] for i in indxs ]
 
 @plugin.action()
 def f_genres(params):
 	from src.search_adv import SearchAdv
 
-	vsdbg._bp()
+	#vsdbg._bp()
 
-	indxs = xbmcgui.Dialog().multiselect(u'Выберите жанр(ы)', [ genre for genre in SearchAdv.genres_list() ])
-	SearchAdv().genres = [ SearchAdv.genres_list()[i] for i in indxs ]
+	genres_list = SearchAdv.genres_list()
+	indxs = xbmcgui.Dialog().multiselect(u'Выберите жанр(ы)', [ genre for genre in genres_list ])
+	SearchAdv().genres = [ genres_list[i] for i in indxs ]
+
+#f_rating
+@plugin.action()
+def f_rating(params):
+	from src.search_adv import SearchAdv
+
+	#vsdbg._bp()
+
+	ratings_list = SearchAdv.ratings_list()
+	indxs = xbmcgui.Dialog().multiselect(u'Выберите рейтинг(и)', [ rating for rating in ratings_list ])
+	SearchAdv().rating = [ SearchAdv.ratings_keys()[i] for i in indxs ]
 
 @plugin.action()
 def f_score(params):
 	from src.search_adv import SearchAdv
-	indx = xbmcgui.Dialog().select(u'Оценка не меньше', [ score for score in SearchAdv.scores_list() ])
+
+	scores_list = SearchAdv.scores_list()
+	indx = xbmcgui.Dialog().select(u'Оценка не меньше', [ score for score in scores_list ])
 
 	if indx >= 0:
-		SearchAdv().score = int(SearchAdv.scores_list()[indx].split(':')[0])
+		SearchAdv().score = int(scores_list[indx].split(':')[0])
 	else:
 		SearchAdv().score = None
+
+@plugin.action()
+def f_search_reset(params):
+	from src.search_adv import SearchAdv
+	search = SearchAdv()
+
+	if	search.years:
+		del	search.years
+	if search.score:
+		del search.score
+	if search.genres:
+		del search.genres
+	if search.rating:
+		del search.rating
 
 @plugin.action()
 def f_search_adv(params):
 	from src.search_adv import SearchAdv
 	kwargs = {}
-	if SearchAdv().years:
-		kwargs['season'] = ','.join([str(year) for year in SearchAdv().years])
 
-	if SearchAdv().score:
-		kwargs['score'] = SearchAdv().score
+	def str_list(ll):
+		return ','.join([str(l) for l in ll])
+
+	search = SearchAdv()
+
+	if search.years:
+		kwargs['season'] = str_list( search.years )
+
+	if search.score:
+		kwargs['score'] = search.score
+
+	if search.genres:
+		kwargs['genre'] = str_list( search.genre_ids )
+
+	if search.rating:
+		kwargs['rating'] = str_list( search.rating )
+
+	xbmc.log(repr(kwargs))
 
 	oo = shikicore.search_adv(limit = 50, **kwargs)
 	return [ anime_catalog(o) for o in oo]
@@ -370,7 +439,7 @@ def src_item(s):
 
 @plugin.action()
 def sources(params):
-	vsdbg._bp()
+	#vsdbg._bp()
 	l = get_list(params['cmd'])
 
 	return [ src_item(s) for s in l ]
@@ -383,7 +452,7 @@ def episode_item(e):
 
 @plugin.action()
 def play(params):
-	vsdbg._bp()
+	#vsdbg._bp()
 
 	options = []
 	actions = []
@@ -420,7 +489,7 @@ def play(params):
 
 @plugin.action()
 def rate(params):
-	vsdbg._bp()
+	#vsdbg._bp()
 
 	id = params['id']
 
@@ -432,7 +501,7 @@ def rate(params):
 def score(params):
 	whoami = shikicore_whoami()['id']
 
-	vsdbg._bp()
+	#vsdbg._bp()
 
 	id = params['id']
 
@@ -441,7 +510,7 @@ def score(params):
 
 @plugin.action()
 def rates(params):
-	vsdbg._bp()
+	#vsdbg._bp()
 
 	from src.rates import status_list
 	return status_list(shikicore_whoami()['id'], plugin)
@@ -449,14 +518,14 @@ def rates(params):
 
 @plugin.action()
 def rate_list(params):
-	vsdbg._bp()
+	#vsdbg._bp()
 
 	Ids = params['ids'].split(',')
 
-	curr_ids = Ids[:10]
-	next_ids = Ids[10:]
+	curr_ids = Ids[:20]
+	next_ids = Ids[20:]
 
-	result = [ anime_item({'id': id }) for id in curr_ids ]
+	result = [ anime_catalog(shikicore_animes_(id)) for id in curr_ids ]
 
 	if next_ids:
 		params['ids'] = ','.join(next_ids)

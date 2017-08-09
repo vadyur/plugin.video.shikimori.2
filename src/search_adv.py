@@ -8,13 +8,7 @@ class SearchAdv(object):
 		''' '''
 		self.storage = MemStorage('shiki.SearchAdv')
 
-	def genres_dict(self):
-		import shikicore
-
-		if 'genres_dict' not in self.storage:
-			self.storage['genres_dict'] = [ genre for genre in shikicore.genres() if genre['kind'] == 'anime' ]
-		return self.storage['genres_dict']
-
+	# --------------------------------------------------------------------------------------
 	years = property()
 
 	@years.getter
@@ -36,11 +30,12 @@ class SearchAdv(object):
 
 		return [ year for year in xrange(now.year, 1990, -1) ]
 
+	# --------------------------------------------------------------------------------------
 	genres = property()
 
 	@genres.getter
 	def genres(self):
-		return self.storage.get('genres')
+		return self.storage.get('genres', [])
 
 	@genres.setter
 	def genres(self, value):
@@ -50,6 +45,14 @@ class SearchAdv(object):
 	def genres(self):
 		del self.storage['genres']
 
+	def genres_dict(self):
+		import shikicore
+
+		if 'genres_dict' not in self.storage:
+			self.storage['genres_dict'] = [ genre for genre in shikicore.genres() if genre['kind'] == 'anime' ]
+		return self.storage['genres_dict']
+
+	@property
 	def genre_ids(self):
 		l = self.genres
 
@@ -57,8 +60,9 @@ class SearchAdv(object):
 
 	@staticmethod
 	def genres_list():
-		return [ genre['russian'] for genre in SearchAdv().genres_dict() ]
+		return sorted([ genre['russian'] for genre in SearchAdv().genres_dict() ])
 
+	# --------------------------------------------------------------------------------------
 	score = property()
 
 	@score.getter
@@ -84,3 +88,40 @@ class SearchAdv(object):
 
 		return [ line(n) for n in range(1, 10) ]
 
+
+	# --------------------------------------------------------------------------------------
+	rating = property()
+
+	@rating.getter
+	def rating(self):
+		return self.storage.get('rating', [])
+
+	@rating.setter
+	def rating(self, value):
+		self.storage['rating'] = value
+
+	@rating.deleter
+	def rating(self):
+		del self.storage['rating']
+
+	@staticmethod
+	def ratings_keys():
+		return ['g', 'pg', 'pg_13', 'r', 'r_plus', 'rx']
+
+	@staticmethod
+	def ratings_dict():
+		return {
+			'g': u"G - Нет возрастных ограничений",
+			'pg': u"PG - Рекомендуется присутствие родителей",
+			'pg_13': u"PG-13 - Детям до 13 лет просмотр не желателен",
+			'r': u"R - Лицам до 17 лет обязательно присутствие взрослого",
+			'r_plus': u"R+ - Лицам до 17 лет просмотр запрещен",
+			'rx': u"Rx - Хентай"
+		}
+
+	@staticmethod
+	def ratings_list():
+		rk = SearchAdv.ratings_keys()
+		return [ SearchAdv.ratings_dict()[r] for r in rk ]
+
+	
